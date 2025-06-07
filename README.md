@@ -21,7 +21,7 @@ Supports:
 Clone this repository:
 
 ```bash
-git clone https://github.com/yourusername/AradSMPP.Net.git
+git clone https://github.com/araditc/AradSMPP.Net.git
 ```
 
 Or add the project to your solution.
