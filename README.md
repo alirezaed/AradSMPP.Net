@@ -1,4 +1,5 @@
 # AradSMPP.Net
+**AradSMPP.Net** — Refactored from [Ardan Studios SMPPClient](https://github.com/ArdanStudios/SMPPClient), updated for .NET 8+.
 
 **High-performance SMPP Client Library for .NET 8+**  
 An open-source SMPP client implementation written in C#.  
