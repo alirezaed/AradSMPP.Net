@@ -258,7 +258,9 @@ public class SubmitMultiSm : Header, IPacket, IPduDetails
     public byte[] GetPdu()
     {
         if (UserData.Headers.Count > 0)
+        {
             EsmClass |= 0x40;
+        }
 
         SmppBuffer tmpBuff = new(DefaultEncoding, this);
 

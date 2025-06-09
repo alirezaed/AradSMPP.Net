@@ -34,7 +34,7 @@ for (; ; )
     // Hit Enter in the terminal once the binds are up to see this prompt
 
     Console.WriteLine("Commands");
-    Console.WriteLine("send 989123456789 Hello");
+    Console.WriteLine("send 989123456789 علی عدالت عزیز، دوره آزمایشی پلن طرح پرمیموم شما به اتمام رسیده است. برای حفظ دسترسی به امکانات کامل، همین حالا پلن خود را تمدید کنید.");
     Console.WriteLine("quit");
     Console.WriteLine("");
 
@@ -42,7 +42,9 @@ for (; ; )
 
     string? command = Console.ReadLine();
     if (command is { Length: 0 })
+    {
         continue;
+    }
 
     switch (command?.Split(' ')[0].ToString())
     {
@@ -57,7 +59,9 @@ for (; ; )
     }
 
     if (bQuit)
+    {
         break;
+    }
 }
 
 connectionManager.Dispose();
@@ -89,16 +93,23 @@ void SendMessage(string? command)
 
         // This is set in the Submit PDU to the SMSC
         // If you are responding to a received message, make this the same as the received message
-        const DataCodings submitDataCoding = DataCodings.Default;
+        const DataCodings submitDataCoding = DataCodings.Ucs2;
 
         // Use this to encode the message
         // We need to know the actual encoding.
-        const DataCodings encodeDataCoding = DataCodings.Ascii;
+        const DataCodings encodeDataCoding = DataCodings.Ucs2;
 
         // There is a default encoding set for each connection. This is used if the encodeDataCoding is Default
 
-        connectionManager.SendMessage(phoneNumber, null, Ton.National, Npi.Isdn, submitDataCoding, encodeDataCoding, message, out SubmitSm? submitSm, out SubmitSmResp? submitSmResp);
-        Console.Write("submitSm:{0}, submitSmResp:{1}, messageId:{2}", submitSm.DestAddr, submitSmResp.Status, submitSmResp.MessageId);
+        connectionManager.SendMessageLarge(phoneNumber, null, Ton.National, Npi.Isdn, submitDataCoding, encodeDataCoding, message, out List<SubmitSm> submitSm, out List<SubmitSmResp> submitSmResp);
+        int i = 0;
+        foreach (SubmitSmResp resp in submitSmResp)  
+        {
+            Console.Write("submitSm:{0}, submitSmResp:{1}, messageId:{2}", submitSm[i].DestAddr, resp.Status, resp.MessageId);
+            i++;
+        }
+
+        
     }
 }
 

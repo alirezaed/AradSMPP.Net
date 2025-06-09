@@ -53,7 +53,25 @@ public class UserData
     }
 
     #endregion
-		
+
+    #region Build Method
+
+    /// <summary>Builds the complete User Data Header (UDH)</summary>
+    public byte[] Build()
+    {
+        List<byte> udhBuffer = new();
+
+        foreach (UserDataHeader header in Headers)
+        {
+            udhBuffer.AddRange(header.GetBytes());
+        }
+
+        return udhBuffer.ToArray();
+    }
+
+    #endregion
+
+
     #region Factory Methods
 
     /// <summary> Called to create a UserData object </summary>

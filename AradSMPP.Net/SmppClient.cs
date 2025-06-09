@@ -1600,7 +1600,7 @@ public class SmppClient : IDisposable
     /// <param name="message"></param>
     /// <returns> List SubmitSm </returns>
     public List<SubmitSm?> PrepareSubmitLarge(SubmitMode mode, string? serviceType, byte srcTon, byte srcNpi, string? srcAddr, byte destTon, byte destNpi,
-                                              string? destAddr, DataCodings submitDataCoding, DataCodings encodeDataCoding, string message)
+                                           string? destAddr, DataCodings submitDataCoding, DataCodings encodeDataCoding, string message)
     {
         List<SubmitSm?> submitSmList = [];
 
@@ -1609,18 +1609,18 @@ public class SmppClient : IDisposable
             OnError($"Unsupported data coding [{encodeDataCoding}]");
             encodeDataCoding = DataCodings.Default;
         }
-            
+
         // Standard 160 bytes
         int maxBytes = ShortMessageMaxBytes;
         if (encodeDataCoding == DataCodings.Ucs2)
         {
-            // Unicode message
-            maxBytes = 140;
+            // Unicode → 2 bytes per char → adjust maxBytes
+            maxBytes = 134; // Safe value → can fine-tune
         }
 
-        // Convert the message to a byte array
+        // Convert message to bytes
         byte[] messageBytes = new SmppBuffer(DefaultEncoding, message, encodeDataCoding).Buffer;
-            
+
         switch (mode)
         {
             case SubmitMode.ShortMessage:
@@ -1635,38 +1635,44 @@ public class SmppClient : IDisposable
                 }
                 else
                 {
-                    //Since we are including UDHI header
-                    maxBytes = 153;
+                    maxBytes = 153; // when UDH added
 
-                    /* if (encodeDataCoding == DataCodings.Default       ||
-                         encodeDataCoding == DataCodings.ASCII         ||
-                         encodeDataCoding == DataCodings.Latin1        ||
-                         encodeDataCoding == DataCodings.Latin1Escape  ||
-                         encodeDataCoding == DataCodings.DefaultFlashSMS)
-                     {
-                         maxBytes = Convert.ToInt32(Math.Floor(Convert.ToDouble(maxBytes) * 8 / 7));
-                     }
-                     */
                     byte messageReference = SequenceGenerator.ByteCounter;
                     int sequenceNumber = 1;
 
-                    // Split the message in parts we can send
-                    //List<byte[]> parts = SmppBuffer.SplitMessageOnParts(messageBytes, maxBytes);
-                    var parts = SmppBuffer.Split(message, maxBytes);
+                    List<string> parts = SmppBuffer.Split(message, maxBytes);
+
                     foreach (string part in parts)
                     {
                         SubmitSm? submitSm = SubmitSm.Create(DefaultEncoding, serviceType, srcTon, srcNpi, srcAddr, destTon, destNpi, destAddr);
 
                         submitSm.DataCoding = submitDataCoding;
-                        submitSm.UserData.Headers.AddConcatenatedShortMessages8Bit(DefaultEncoding, messageReference, Convert.ToByte(parts.Count), Convert.ToByte(sequenceNumber));
-                        submitSm.ShortMessageBytes = new SmppBuffer(DefaultEncoding, part, encodeDataCoding).Buffer;
+
+                        // Add UDH
+                        submitSm.UserData.Headers.AddConcatenatedShortMessages8Bit(DefaultEncoding, messageReference, (byte)parts.Count, (byte)sequenceNumber);
+
+                        // Build UDH
+                        byte[] udhBytes = submitSm.UserData.Build();
+
+
+                        // Build message part bytes
+                        byte[] partBytes = new SmppBuffer(DefaultEncoding, part, encodeDataCoding).Buffer;
+
+                        // Merge UDH + message
+                        byte[] shortMessageBytes = new byte[udhBytes.Length + partBytes.Length];
+                        Buffer.BlockCopy(udhBytes, 0, shortMessageBytes, 0, udhBytes.Length);
+                        Buffer.BlockCopy(partBytes, 0, shortMessageBytes, udhBytes.Length, partBytes.Length);
+
+                        // Assign
+                        submitSm.ShortMessageBytes = shortMessageBytes;
+
                         submitSmList.Add(submitSm);
 
                         sequenceNumber++;
                     }
                 }
                 break;
-                    
+
             case SubmitMode.Payload:
                 if (messageBytes.Length <= maxBytes)
                 {
@@ -1679,13 +1685,12 @@ public class SmppClient : IDisposable
                 }
                 else
                 {
-                    // Subtract 6 bytes for the UDHI header
                     maxBytes = maxBytes - 6;
 
-                    if (encodeDataCoding == DataCodings.Default       ||
-                        encodeDataCoding == DataCodings.Ascii         ||
-                        encodeDataCoding == DataCodings.Latin1        ||
-                        encodeDataCoding == DataCodings.Latin1Escape  ||
+                    if (encodeDataCoding == DataCodings.Default ||
+                        encodeDataCoding == DataCodings.Ascii ||
+                        encodeDataCoding == DataCodings.Latin1 ||
+                        encodeDataCoding == DataCodings.Latin1Escape ||
                         encodeDataCoding == DataCodings.DefaultFlashSMS)
                     {
                         maxBytes = Convert.ToInt32(Math.Floor(Convert.ToDouble(maxBytes) * 8 / 7));
@@ -1694,7 +1699,6 @@ public class SmppClient : IDisposable
                     byte messageReference = SequenceGenerator.ByteCounter;
                     int sequenceNumber = 1;
 
-                    // Split the message in parts we can send
                     List<byte[]> parts = SmppBuffer.SplitMessageOnParts(messageBytes, maxBytes);
 
                     foreach (byte[] part in parts)
@@ -1717,7 +1721,7 @@ public class SmppClient : IDisposable
                 break;
         }
 
-        // All messages need the same validity period
+        // Add Validity Period to all messages
         foreach (SubmitSm? submitSm in submitSmList)
         {
             submitSm.ValidityPeriod = DateTime.Now.AddDays(2).ToString("yyMMddhhmmss000+");
@@ -1725,7 +1729,8 @@ public class SmppClient : IDisposable
 
         return submitSmList;
     }
-        
+
+
     /// <summary> Prepare SubmitMulti instances for sending with methods Submit or SubmitAsync </summary>
     /// <param name="mode"></param>
     /// <param name="serviceType"></param>

@@ -775,7 +775,7 @@ internal class EsmeConnection : IDisposable
             // Prepare the message, I have made sure there is only ever one message
             // with the trunacting above
             submitSmList = _client.PrepareSubmitLarge(
-                SubmitMode.ShortMessage,
+                SubmitMode.Payload,
                 serviceType,
                 (byte) Ton.NetworkSpecific,
                 (byte) Npi.Unknown,

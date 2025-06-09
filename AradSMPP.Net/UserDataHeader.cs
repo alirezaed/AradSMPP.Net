@@ -104,6 +104,23 @@ public class UserDataHeader
     {
         return new(iei, len, data);
     }
-        
+
     #endregion
+
+    #region GetBytes Method
+
+    /// <summary>Gets UserDataHeader as bytes (IEI | Length | Data)</summary>
+    public byte[] GetBytes()
+    {
+        byte[] buffer = new byte[2 + Length];
+
+        buffer[0] = IeiId;
+        buffer[1] = Length;
+        Array.Copy(Data, 0, buffer, 2, Length);
+
+        return buffer;
+    }
+
+    #endregion
+
 }
